@@ -1,0 +1,24 @@
+{
+    "dockerComposePath": "",
+    "makefilePath": "",
+    "commands": {
+        "Sample Command Group": {
+            "Sample Command": "echo 'This is a sample command.'",
+            "Sample Command Sub Group": {
+                "Sub Group Sample Command": "echo 'This is a sample command.'",
+                "Sample Command Sub Group": {
+                    "Another Sub Group Sample Command": "echo 'This is a sample command.'"
+                }
+            }
+        }
+    },
+    "options": {
+        "aws": {
+            "sso": {
+                "useForDockerCompose": false,
+                "useForMakefile": false,
+                "session": "main"
+            }
+        }
+    }
+}

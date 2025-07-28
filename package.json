@@ -1,0 +1,24 @@
+{
+  "name": "stack-cli",
+  "version": "1.0.0",
+  "description": "",
+  "author": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "npm run build && npm start",
+    "build": "node ./src/utils/build.js",
+    "start": "node dist/cli.js"
+  },
+  "dependencies": {
+    "chalk": "^5.4.1",
+    "execa": "^9.6.0",
+    "inquirer": "^12.8.2",
+    "ora": "^8.2.0",
+    "yaml": "^2.8.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.8",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  }
+}
