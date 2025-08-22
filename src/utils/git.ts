@@ -30,6 +30,7 @@ export const verifyGitStatus = async (repoPath: string): Promise<GitStatus> => {
     isUpToDate: false,
   };
   let cwdPath = repoPath;
+  let mainBranch: string = 'main';
   let gitRoot: string;
 
   try {
@@ -37,9 +38,14 @@ export const verifyGitStatus = async (repoPath: string): Promise<GitStatus> => {
     if (!stat.isDirectory()) {
       cwdPath = path.dirname(repoPath);
     }
-  } catch (err) {
+  } catch {
     return check;
   }
+
+  const spinner = ora({
+    text: 'Checking if file is inside a Git repository...',
+    spinner: 'dots',
+  }).start();
 
   try {
     const { stdout } = await execaCommand('git rev-parse --show-toplevel', {
@@ -48,34 +54,73 @@ export const verifyGitStatus = async (repoPath: string): Promise<GitStatus> => {
     });
     gitRoot = stdout.trim();
     check.inRepository = true;
-  } catch (err) {
+  } catch {
+    spinner.stop();
     return check;
   }
 
-  const spinner = ora({
-    text: chalk.yellow('Verifying Git Repository status...'),
-    spinner: 'dots',
-  }).start();
+  spinner.start('Verifying Git Repository status...');
 
   try {
     const { stdout } = await execaCommand('git rev-parse --abbrev-ref HEAD', {
       cwd: gitRoot,
       shell: true,
     });
+    mainBranch = stdout.trim();
     check.isMainBranch = ['main', 'master'].includes(stdout.trim());
   } catch (err) {
+    spinner.fail(chalk.red('Failed to get current branch.'));
     console.error('Error checking current branch:', err);
   }
 
   try {
-    const { stdout } = await execaCommand('git status --short', {
-      cwd: gitRoot,
+    const { stdout: remote } = await execaCommand(`git rev-parse origin/${mainBranch}`, {
+      cwd: cwdPath,
       shell: true,
     });
-    check.isUpToDate = stdout.trim().length === 0;
+    const { stdout: local } = await execaCommand(`git rev-parse ${mainBranch}`, {
+      cwd: cwdPath,
+      shell: true,
+    });
+    check.isUpToDate = local === remote;
   } catch (err) {
+    spinner.fail(chalk.red('Failed to check if repository is up to date.'));
     console.error('Error checking repository status:', err);
   }
-  spinner.stop();
+
+  if (!check.isMainBranch) {
+    spinner.warn(chalk.yellow("Target file current branch is not 'main' or 'master'."));
+  } else if (!check.isUpToDate) {
+    spinner.warn(chalk.yellow('Target file repository is not up to date with remote repository or has changes.'));
+  } else {
+    spinner.stop();
+  }
+
   return check;
+};
+
+export const fetchPackageVersion = async (): Promise<string> => {
+  const packageJsonPath = path.join(__dirname, '../package.json');
+  try {
+    const data = await fs.readFile(packageJsonPath, 'utf-8');
+    const packageJson = JSON.parse(data);
+    return `v${packageJson.version}`;
+  } catch (err) {
+    console.error('Failed to read package.json:', err);
+    return null;
+  }
+};
+
+export const fetchLatestVersion = async (): Promise<string> => {
+  try {
+    const response = await fetch('https://api.github.com/repos/lukeol11/Stack-CLI/releases/latest');
+    if (!response.ok) {
+      throw new Error(`GitHub API returned status ${response.status}`);
+    }
+    const data = await response.json();
+    return data.tag_name || 'unknown';
+  } catch (err) {
+    console.error('Failed to fetch latest version:', err);
+    return null;
+  }
 };

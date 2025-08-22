@@ -3,6 +3,12 @@ import { DockerCompose } from './core/dockerCompose';
 import { Makefile } from './core/makeFile';
 import config from '../config.json';
 import { Commands } from './core/commands';
+import chalk from 'chalk';
+import figlet from 'figlet';
+import miniwi from 'figlet/importable-fonts/miniwi';
+import { fetchLatestVersion, fetchPackageVersion, verifyGitStatus } from './utils/git';
+
+figlet.parseFont('miniwi', miniwi);
 
 enum ChoiceValues {
   DOCKER_COMPOSE = 'dockerCompose',
@@ -10,8 +16,8 @@ enum ChoiceValues {
 }
 
 class StackCLI {
-  private dockerCompose: DockerCompose;
-  private makeFile: Makefile;
+  private dockerCompose!: DockerCompose;
+  private makeFile!: Makefile;
   private commands: Commands;
   private config: any;
   constructor() {
@@ -19,7 +25,36 @@ class StackCLI {
     this.commands = new Commands();
   }
 
-  start = async (): Promise<void> => {
+  private printBanner = () => {
+    figlet.text(
+      this.config?.options?.name || 'Stack CLI',
+      {
+        font: 'miniwi',
+      },
+      (err, data) => {
+        if (err) {
+          console.error(err);
+        }
+        console.log(chalk.bold(data));
+      },
+    );
+  };
+
+  public start = async (): Promise<void> => {
+    await this.printBanner();
+
+    const [latestVersion, localVersion] = await Promise.all([fetchLatestVersion(), fetchPackageVersion()]);
+
+    if (latestVersion !== localVersion) {
+      console.log(
+        chalk.yellow('Your Stack CLI version is outdated!'),
+        chalk.cyan(`\n Your Version:  ${localVersion}\n Latest Version: ${latestVersion}`),
+      );
+      console.log(chalk.cyan(`Changelog: https://github.com/lukeol11/Stack-CLI/releases/tag/${latestVersion}\n`));
+    } else {
+      console.log(chalk.red('Could not fetch version information.'));
+    }
+
     try {
       const selectOptions = {
         message: 'Please select a function:',
@@ -67,7 +102,7 @@ class StackCLI {
           this.commands.handleCommands(choice);
       }
     } catch (err) {
-      if (err.message !== 'User force closed the prompt with SIGINT') {
+      if (!(err instanceof Error && err.name === 'ExitPromptError')) {
         console.error('An error occurred while running the CLI:', err);
       }
     }

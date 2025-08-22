@@ -4,7 +4,7 @@ import yaml from 'yaml';
 import { verifyGitStatus, type GitStatus } from '../utils/git';
 import { kebabCaseToTitleCase } from '../utils/stringUtils';
 import { checkbox, confirm } from '@inquirer/prompts';
-import { ensureAwsLogin } from '../utils/aws';
+import { ensureAwsSSOLogin } from '../utils/aws';
 import config from '../../config.json';
 
 export class DockerCompose {
@@ -18,17 +18,8 @@ export class DockerCompose {
 
   private async getServices(): Promise<string[]> {
     try {
-      const gitStatus: GitStatus = await verifyGitStatus(this.configPath);
-      if (gitStatus.inRepository) {
-        if (!gitStatus.isMainBranch) {
-          console.warn(
-            'Warning: The Docker Compose file is not on the main branch. Some features may not work as expected.',
-          );
-        }
-        if (!gitStatus.isUpToDate) {
-          console.warn('Warning: The Docker Compose file is not up-to-date. Please pull the latest changes.');
-        }
-      }
+      await verifyGitStatus(this.configPath);
+
       const data = await fs.readFile(this.configPath, 'utf-8');
       const parsed = yaml.parse(data);
 
@@ -37,6 +28,7 @@ export class DockerCompose {
         services.forEach((service) => {
           this.services[service] = parsed.services[service];
         });
+        services.sort();
         return services;
       } else {
         console.error('No services defined in Docker Compose file.');
@@ -56,7 +48,7 @@ export class DockerCompose {
     try {
       for (const serviceName of serviceNames) {
         await execa('docker', ['compose', '-f', this.configPath, 'pull', serviceName], {
-          stdout: 'inherit',
+          stdout: 'ignore',
           stderr: 'inherit',
         });
       }
@@ -69,7 +61,7 @@ export class DockerCompose {
     try {
       for (const serviceName of serviceNames) {
         await execa('docker', ['compose', '-f', this.configPath, 'up', '-d', serviceName], {
-          stdout: 'inherit',
+          stdout: 'ignore',
           stderr: 'inherit',
         });
       }
@@ -117,7 +109,7 @@ export class DockerCompose {
       }
 
       if (this.options?.aws?.sso?.useForDockerCompose) {
-        await ensureAwsLogin(this.options?.aws?.sso?.session);
+        await ensureAwsSSOLogin(this.options?.aws?.sso?.session);
       }
 
       const pullFirst = await confirm({
@@ -130,7 +122,7 @@ export class DockerCompose {
 
       await this.startServices(selectedServices);
     } catch (err: any) {
-      if (err.message !== 'User force closed the prompt with SIGINT') {
+      if (!(err instanceof Error && err.name === 'ExitPromptError')) {
         throw new Error(`Failed to select Docker Compose services: ${err.message}`);
       }
     }
