@@ -48,7 +48,7 @@ export class Commands {
           await this.handleCommands(nextChoice);
           return;
         } catch (err) {
-          if (err.message !== 'User force closed the prompt with SIGINT') {
+          if (!(err instanceof Error && err.name === 'ExitPromptError')) {
             console.error('An error occurred while running the CLI:', err);
           }
           return;

@@ -3,7 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { GitStatus, verifyGitStatus } from '../utils/git';
 import { kebabCaseToTitleCase } from '../utils/stringUtils';
-import { ensureAwsLogin } from '../utils/aws';
+import { ensureAwsSSOLogin } from '../utils/aws';
 import { checkbox } from '@inquirer/prompts';
 import config from '../../config.json';
 
@@ -17,15 +17,8 @@ export class Makefile {
 
   private async getTargets(): Promise<string[]> {
     try {
-      const gitStatus: GitStatus = await verifyGitStatus(this.makefilePath);
-      if (gitStatus.inRepository) {
-        if (!gitStatus.isMainBranch) {
-          console.warn('Warning: The Make file is not on the main branch. Some features may not work as expected.');
-        }
-        if (!gitStatus.isUpToDate) {
-          console.warn('Warning: The Make file is not up-to-date. Please pull the latest changes.');
-        }
-      }
+      await verifyGitStatus(this.makefilePath);
+
       const content = await fs.readFile(this.makefilePath, 'utf-8');
       const lines = content.split('\n');
 
@@ -55,7 +48,7 @@ export class Makefile {
       for (const targetName of targetNames) {
         await execa('make', ['-f', this.makefilePath, targetName], {
           cwd: makefileDir,
-          stdout: 'inherit',
+          stdout: 'ignore',
           stderr: 'inherit',
         });
       }
@@ -94,12 +87,12 @@ export class Makefile {
       }
 
       if (this.options?.aws?.sso?.useForMakefile) {
-        await ensureAwsLogin(this.options?.aws?.sso?.session);
+        await ensureAwsSSOLogin(this.options?.aws?.sso?.session);
       }
 
       await this.runTargets(selectedTargets);
     } catch (err) {
-      if (err.message !== 'User force closed the prompt with SIGINT') {
+      if (!(err instanceof Error && err.name === 'ExitPromptError')) {
         throw new Error(`An error occurred while running Makefile targets: ${err.message}`);
       }
     }
