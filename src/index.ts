@@ -51,8 +51,6 @@ class StackCLI {
         chalk.cyan(`\n Your Version:  ${localVersion}\n Latest Version: ${latestVersion}`),
       );
       console.log(chalk.cyan(`Changelog: https://github.com/lukeol11/Stack-CLI/releases/tag/${latestVersion}\n`));
-    } else {
-      console.log(chalk.red('Could not fetch version information.'));
     }
 
     try {
