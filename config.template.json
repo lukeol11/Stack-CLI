@@ -13,10 +13,12 @@
         }
     },
     "options": {
+        "name": "Stack CLI",
         "aws": {
             "sso": {
                 "useForDockerCompose": false,
                 "useForMakefile": false,
+                "askEachTime": true,
                 "session": "main"
             }
         }
